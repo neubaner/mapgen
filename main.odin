@@ -57,16 +57,16 @@ drawASCII :: proc(terrain: TerrainMap) {
 
 getTileRayLibColor :: proc(tileVal: u8) -> rl.Color {
 	switch tileVal {
-	case 0 ..= 50:
+	case 0 ..= 25: // Water
 		return RL_BLUE
 
-	case 51 ..= 150:
+	case 26 ..= 125: // Plains
 		return RL_LGREEN
 
-	case 151 ..= 200:
+	case 126 ..= 200: // Forest
 		return RL_DGREEN
 
-	case 201 ..= 250:
+	case 201 ..= 250: // Mountains
 		fallthrough
 	case:
 		return RL_BROWN
@@ -86,8 +86,8 @@ main :: proc() {
 	terrain.tiles = make([dynamic]u8, 0, terrain.width * terrain.height)
 	defer delete(terrain.tiles)
 
-	seed: i64 = 23 // TODO: Generate a random seed every time
-	zoomFactor: f64 = 20.0
+	seed: i64 = 20_110_920 // TODO: Generate a random seed every time
+	zoomFactor: f64 = 10.0
 
 	for x: u64 = 0; x < terrain.width; x += 1 {
 		for y: u64 = 0; y < terrain.height; y += 1 {
