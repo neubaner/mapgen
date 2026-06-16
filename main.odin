@@ -21,7 +21,8 @@ import rl "vendor:raylib"
 
 TerrainMap :: struct {
 	width, height: u64,
-	tiles:         [dynamic]u16,
+	tiles:         [dynamic]f32,
+	moisture:      [dynamic]f32,
 }
 
 AnsiConsts :: struct {
@@ -58,26 +59,16 @@ drawASCII :: proc(terrain: TerrainMap) {
 	}
 }
 
-getTileRayLibColor :: proc(tileVal: u16) -> rl.Color {
-	switch tileVal {
-	case 0 ..= 149:
-		// Water
-		return RL_BLUE
+getTileRayLibColor :: proc(terrain: f32, moisture: f32) -> rl.Color {
+	WATER :: 0.4
+	PLAINS :: 0.6
+	FOREST :: 0.9
 
-	case 150 ..= 749:
-		// Plains
-		return RL_LGREEN
+	if (terrain < WATER) {return RL_BLUE}
 
-	case 750 ..= 874:
-		// Forest
-		return RL_DGREEN
-
-	case 875 ..= 1000:
-		// Mountains
-		fallthrough
-	case:
-		return RL_BROWN
-	}
+	if (moisture < PLAINS) {return RL_LGREEN}
+	if (moisture < FOREST) {return RL_DGREEN}
+	return RL_BROWN
 }
 
 RL_BLUE :: rl.Color{40, 157, 235, 255}
@@ -85,26 +76,54 @@ RL_LGREEN :: rl.Color{114, 212, 145, 255}
 RL_DGREEN :: rl.Color{42, 115, 15, 255}
 RL_BROWN :: rl.Color{112, 73, 11, 255}
 
+noise2d :: proc(seed: i64, x: f64, y: f64) -> f32 {
+	noiseVal := noise.noise_2d(seed, {x, y})
+	normalized := (noiseVal + 1.0) / 2.0
+
+	return normalized
+}
+
 main :: proc() {
 	terrain := TerrainMap {
 		width  = 250,
 		height = 250,
 	}
-	terrain.tiles = make([dynamic]u16, 0, terrain.width * terrain.height)
+	terrain.tiles = make([dynamic]f32, 0, terrain.width * terrain.height)
+	terrain.moisture = make([dynamic]f32, 0, terrain.width * terrain.height)
 	defer delete(terrain.tiles)
 
 	// seed: i64 = 20_110_920
 	seed: i64 = rand.int64_range(min(i64), max(i64))
-	zoomFactor: f64 = 10.0
+	seedMoisture: i64 = rand.int64_range(min(i64), max(i64))
+	zoomFactor: f64 = 0.03
 
 	for x: u64 = 0; x < terrain.width; x += 1 {
 		for y: u64 = 0; y < terrain.height; y += 1 {
-			noiseVal := noise.noise_2d_improve_x(
-				seed,
-				{cast(f64)x / zoomFactor, cast(f64)y / zoomFactor},
-			) // TODO: Ensure I want "improve_x"
+			// TODO: Ensure I want "improve_x"
+			noise :=
+				1 * noise2d(seed, zoomFactor * 1 * cast(f64)x, zoomFactor * 1 * cast(f64)y) +
+				0.5 * noise2d(seed, zoomFactor * 2 * cast(f64)x, zoomFactor * 2 * cast(f64)y) +
+				0.25 * noise2d(seed, zoomFactor * 4 * cast(f64)x, zoomFactor * 4 * cast(f64)y)
+			noise = noise / (1 + 0.5 + 0.25)
+			append(&terrain.tiles, noise)
 
-			append(&terrain.tiles, cast(u16)(((noiseVal + 1.0) / 2.0) * 1000.0))
+			moisture :=
+				1 *
+					noise2d(
+						seedMoisture,
+						zoomFactor * 1 * cast(f64)x,
+						zoomFactor * 1 * cast(f64)y,
+					) +
+				0.5 *
+					noise2d(
+						seedMoisture,
+						zoomFactor * 2 * cast(f64)x,
+						zoomFactor * 2 * cast(f64)y,
+					) +
+				0.25 *
+					noise2d(seedMoisture, zoomFactor * 4 * cast(f64)x, zoomFactor * 4 * cast(f64)y)
+			moisture = moisture / (1 + 0.5 + 0.25)
+			append(&terrain.moisture, moisture)
 		}
 	}
 
@@ -125,7 +144,7 @@ main :: proc() {
 		rl.BeginDrawing()
 
 		for _, i in terrain.tiles {
-			tileColor := getTileRayLibColor(terrain.tiles[i])
+			tileColor := getTileRayLibColor(terrain.tiles[i], terrain.moisture[i])
 
 			rl.DrawRectangle(
 				posX = cast(c.int)(tileWidth * (cast(u64)i % terrain.width)),
