@@ -144,19 +144,60 @@ main :: proc() {
 	rl.InitWindow(screenWidth, screenHeight, "raylib log callback")
 	defer rl.CloseWindow()
 
+	DisplayMode :: enum {
+		Map,
+		NoiseMap,
+		MoistureMap,
+	}
+
+	displayMode := DisplayMode.Map
 	for !rl.WindowShouldClose() {
+		if (rl.IsKeyPressed(rl.KeyboardKey.Z)) {
+			displayMode = .Map
+		}
+		if (rl.IsKeyPressed(rl.KeyboardKey.X)) {
+			displayMode = .NoiseMap
+		}
+		if (rl.IsKeyPressed(rl.KeyboardKey.C)) {
+			displayMode = .MoistureMap
+		}
 		rl.BeginDrawing()
 
-		for _, i in terrain.tiles {
-			tileColor := getTileRayLibColor(terrain.tiles[i], terrain.moisture[i])
+		switch (displayMode) {
+		case .Map:
+			for _, i in terrain.tiles {
+				tileColor := getTileRayLibColor(terrain.tiles[i], terrain.moisture[i])
 
-			rl.DrawRectangle(
-				posX = cast(c.int)(tileWidth * (cast(u64)i % terrain.width)),
-				posY = cast(c.int)(tileHeight * (cast(u64)i / terrain.width)),
-				width = cast(c.int)tileWidth,
-				height = cast(c.int)tileHeight,
-				color = tileColor,
-			)
+				rl.DrawRectangle(
+					posX = cast(c.int)(tileWidth * (cast(u64)i % terrain.width)),
+					posY = cast(c.int)(tileHeight * (cast(u64)i / terrain.width)),
+					width = cast(c.int)tileWidth,
+					height = cast(c.int)tileHeight,
+					color = tileColor,
+				)
+			}
+		case .NoiseMap:
+			for _, i in terrain.tiles {
+				luminosity := cast(u8)(terrain.tiles[i] * 255)
+				rl.DrawRectangle(
+					posX = cast(c.int)(tileWidth * (cast(u64)i % terrain.width)),
+					posY = cast(c.int)(tileHeight * (cast(u64)i / terrain.width)),
+					width = cast(c.int)tileWidth,
+					height = cast(c.int)tileHeight,
+					color = rl.Color{luminosity, luminosity, luminosity, 255},
+				)
+			}
+		case .MoistureMap:
+			for _, i in terrain.tiles {
+				luminosity := cast(u8)(terrain.moisture[i] * 255)
+				rl.DrawRectangle(
+					posX = cast(c.int)(tileWidth * (cast(u64)i % terrain.width)),
+					posY = cast(c.int)(tileHeight * (cast(u64)i / terrain.width)),
+					width = cast(c.int)tileWidth,
+					height = cast(c.int)tileHeight,
+					color = rl.Color{luminosity, luminosity, luminosity, 255},
+				)
+			}
 		}
 
 		rl.EndDrawing()
